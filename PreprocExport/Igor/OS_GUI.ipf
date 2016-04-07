@@ -9,6 +9,7 @@
 #include "OS_hdf5Export"
 #include "OS_LaunchCellLab"
 #include "OS_STRFs"
+#include "OS_EventFinder"
 
 //----------------------------------------------------------------------------------------------------------------------
 Menu "ScanM", dynamic
@@ -35,17 +36,18 @@ function OS_GUI()
 	DrawText 24,334,"Step 5: Averaging (just for display) "
 	SetDrawEnv fstyle= 1
 	DrawText 24,394,"Step 6: Generate Database files"
-	Button step1,pos={78,39},size={147,26},proc=OS_GUI_Buttonpress,title="Load Parameter Table"
+	Button step1,pos={78,39},size={147,26},proc=OS_GUI_Buttonpress,title="Make New Parameter Table"
 	Button step2a,pos={78,94},size={71,26},proc=OS_GUI_Buttonpress,title="One Channel"
 	Button step2b,pos={154,94},size={71,26},proc=OS_GUI_Buttonpress,title="Ratiometric"
 	Button step3a1,pos={78,155},size={71,20},proc=OS_GUI_Buttonpress,title="Manually"
 	Button step3a2,pos={154,155},size={71,20},proc=OS_GUI_Buttonpress,title="Apply"
 	Button step3a3,pos={78,179},size={147,20},proc=OS_GUI_Buttonpress,title="Use existing SARFIA Mask"	
 	Button step3b,pos={78,203},size={147,20},proc=OS_GUI_Buttonpress,title="Autom. by Correlation"
-	Button step3c,pos={78,228},size={147,20},proc=OS_GUI_Buttonpress,title="Autom. CellLab (not impl.)"
+	Button step3c,pos={78,228},size={147,20},proc=OS_GUI_Buttonpress,title="Autom. CellLab"
 	Button step4,pos={78,278},size={147,26},proc=OS_GUI_Buttonpress,title="Traces and Triggers"
-	Button step5a,pos={78,341},size={71,26},proc=OS_GUI_Buttonpress,title="Averaging"
-	Button step5b,pos={154,341},size={71,26},proc=OS_GUI_Buttonpress,title="ST RFs"	
+	Button step5a,pos={78,341},size={43,26},proc=OS_GUI_Buttonpress,title="Ave"
+	Button step5b,pos={130,341},size={43,26},proc=OS_GUI_Buttonpress,title="Events"			
+	Button step5c,pos={181,341},size={43,26},proc=OS_GUI_Buttonpress,title="RFs"	
 	Button step6,pos={78,402},size={147,26},proc=OS_GUI_Buttonpress,title="Export for database"
 	
 	HideTools/A
@@ -91,6 +93,9 @@ Function OS_GUI_Buttonpress(ba) : ButtonControl
 					OS_BasicAveraging()
 					break
 				case "step5b":
+					OS_EventFinder()
+					break					
+				case "step5c":
 					OS_STRFs()
 					break
 				case "step6":
