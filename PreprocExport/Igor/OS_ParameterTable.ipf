@@ -3,14 +3,38 @@
 function OS_ParameterTable()
 
 // make a new table
-make /o/n=(100) OS_Parameters = NaN
+make /o/n=100 OS_Parameters = NaN
 
 // reads data-header
 wave wParamsNum
+wave /T wParamsStr
 
 // Define Entries
 variable entry_position = 0
+
+//////////// from the wParamsNum wave // Andre 2016 04 14
+Variable xPixelsInd,yPixelsInd,realPixDurInd,lineDur,sampRate,sampPeriod,zoomIndx, pcName,delay,year,month,day,recday// Andre 2016 04 14 & 04 26
+string recDate
+string setup
 /// GENERAL ////////////////////////////////////////////////////////////////////////////////////////////////
+
+setdimlabel 0,entry_position,LineDuration,OS_Parameters
+xPixelsInd = FindDimLabel(wParamsNum,0,"User_dxPix" )// Andre 2016 04 14
+yPixelsInd = FindDimLabel(wParamsNum,0,"User_dyPix" )// Andre 2016 04 14
+realPixDurInd = FindDimLabel(wParamsNum,0,"RealPixDur" )// Andre 2016 04 14
+lineDur = (wParamsNum[xPixelsInd] *  wParamsNum[realPixDurInd]) * 10^-6// Andre 2016 04 14
+OS_Parameters[%LineDuration] = lineDur
+entry_position+=1
+
+setdimlabel 0,entry_position,'samp_period',OS_Parameters
+sampPeriod = (lineDur* wParamsNum[yPixelsInd])// Andre 2016 04 14
+OS_Parameters[%samp_period] = sampPeriod
+entry_position+=1
+
+setdimlabel 0,entry_position,samp_rate_Hz,OS_Parameters
+sampRate = 1/sampPeriod// Andre 2016 04 14
+OS_Parameters[%samp_rate_Hz] = sampRate
+entry_position+=1
 
 SetDimLabel 0,entry_position,Data_Channel,OS_Parameters
 OS_Parameters[%Data_Channel] = 0 // Fluorescence Data in wDataChX - default 0
@@ -32,10 +56,40 @@ SetDimLabel 0,entry_position,LightArtifact_cut,OS_Parameters
 OS_Parameters[%LightArtifact_cut] = 3 // nPixels cut in X to remove LightArtifact - default 3
 entry_position+=1
 
-SetDimLabel 0,entry_position,LineDuration,OS_Parameters
-OS_Parameters[%LineDuration] = wParamsNum(7) * wParamsNum(17) * 10^-6  // == 0.002, usually; number of seconds per scan line
-// Note - initially had this manual entry = 0.002, but some scan protocols have this time not equal to 2 ms, so instead now I calculate it from effective pixel duration (header position 7) multiplied by
-// actual frame width (i.-e. beyond the cropped x-scale shown during the scan, header position 17. the unit in "7" is microseconds, so to scale to seconds is * 10^-6 
+SetDimLabel 0,entry_position,StimulatorDelay,OS_Parameters
+//get some variables, 
+//like the computer name (indicates which setup was used)
+pcName = FindDimLabel(wParamsStr,0,"ComputerName" )
+
+//print setup
+setup = wParamsStr['pcName']
+//and date of the recording
+recDay = FindDimLabel(wParamsStr,0,"DateStamp_d_m_y" )
+recDate = wParamsStr['recDay']
+//convert each part of the string to numbers
+year = str2num(recDate[0,3])
+month=str2num(recDate[5,7])
+day = str2num(recDate[7,9])
+
+if (stringmatch(setup,"euler14_01")) // SETUP 1
+		OS_Parameters[%StimulatorDelay] = 0// nMilliseconds delay of the stimulator between the trigger and the 
+   											 // light actually hitting the tissue. for Arduino stimulator this is 0ms
+   											  
+elseif (stringmatch(setup,"euler14_lab2-1"))		  // SETUP 2
+	if (year < 2016)
+		OS_Parameters[%StimulatorDelay] = 27  // old stimulator software (using directx) written in Pascal is 27,
+	elseif (year == 2016)
+		if (month <= 4 && day <= 24)
+			OS_Parameters[%StimulatorDelay] = 27  // old stimulator software (using directx) written in Pascal is 27,
+		else
+			OS_Parameters[%StimulatorDelay] = 100//new python software (using openGL) installed 25th April 2016) is 100 ms
+		endif
+	else
+		OS_Parameters[%StimulatorDelay] = 100//new python software (using openGL) installed 25th April 2016) is 100 ms
+	endif
+else										  // SETUP 3 (downstairs)
+	OS_Parameters[%StimulatorDelay] = 0  // Right now only has Arduino stimulator on it
+endif
 entry_position+=1
 
 /// DETREND ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -88,6 +142,10 @@ SetDimLabel 0,entry_position,Trigger_LevelRead_after_lines,OS_Parameters
 OS_Parameters[%Trigger_levelread_after_lines] = 2  // to read "Triggervalue" - want to avoid landing on the slope of the trigger - default 2
 entry_position+=1
 
+SetDimLabel 0,entry_position,Skip_Last_Trigger,OS_Parameters // KF 20160310
+OS_Parameters[%Skip_Last_Trigger] = 0  // skips last trigger, e.g. when last loop is not complete - default 0
+entry_position+=1
+
 SetDimLabel 0,entry_position,Trigger_DisplayHeight,OS_Parameters
 OS_Parameters[%Trigger_DisplayHeight] = 6  // How long are the trigger lines in the display (in SD) - default 6
 entry_position+=1
@@ -125,6 +183,7 @@ entry_position+=1
 SetDimLabel 0,entry_position,AverageStack_dF,OS_Parameters
 OS_Parameters[%AverageStack_dF] = 1 // Subtract Average
 entry_position+=1
+
 /// EVENT TRIGGERING  ////////////////////////////////////////////////////////////////////////
 
 SetDimLabel 0,entry_position,Events_nMax,OS_Parameters
@@ -138,7 +197,6 @@ entry_position+=1
 SetDimLabel 0,entry_position,Events_RateBins_s,OS_Parameters
 OS_Parameters[%Events_RateBins_s] = 0.05 // "Smooth_size" for Event rate plots (s) - default 0.05
 entry_position+=1
-
 
 /// RF Calculations  /////////////////////////////////////////////////////////////////////////
 
@@ -158,8 +216,10 @@ SetDimLabel 0,entry_position,Noise_Compression,OS_Parameters
 OS_Parameters[%Noise_Compression] = 10 // Noise RF calculation speed up
 entry_position+=1
 
-
+/// redimension the OS_parameter table, so it doesn't have trailing NaN's
+redimension /N=(entry_position) OS_Parameters
+		
 // Display the Table
-edit /k=1 /W=(50,50,300,500)OS_Parameters.l, OS_Parameters
+edit /k=1 /W=(50,50,300,700)OS_Parameters.l, OS_Parameters
 
 end
